@@ -1,24 +1,21 @@
-var contextMenuConfig;
+var contextMenuConfig, word;
 
 contextMenuConfig = {
   "id": "contextMenu",
   "title": "See definition on Merriam-Webster",
   "contexts": ["selection"]
-  //"contexts": ["selection", "link", "image", "page"]
 }
 
-chrome.contextMenus.create(contextMenuConfig, contextMenuErrorCallback);
+chrome.contextMenus.create(contextMenuConfig, contextMenuFallback);
 chrome.contextMenus.onClicked.addListener(contextMenuOnClick);
 
+function contextMenuFallback(tab) {
+  console.log("error when creating context menu");
+}
+
 function contextMenuOnClick(info, tab) {
-  // editable: false
-  // frameId: 245
-  // frameUrl: "chrome://extensions-frame/"
-  // menuItemId: "contextMenu"
-  // pageUrl: "chrome://chrome/extensions/"
-  // selectionText: "Merriam"
   console.log("selected menuItem is " + info.menuItemId);
-  console.log(info);
+  word = encodeURIComponent(info.selectionText.trim().toLowerCase());
   switch(info.menuItemId) {
     case ("contextMenu"): menuItemMW(info); break;
     default: console.log("Your request has not been handled");
@@ -26,15 +23,35 @@ function contextMenuOnClick(info, tab) {
 }
 
 function menuItemMW(info) {
-  chrome.windows.create({
-    "url": "http://www.merriam-webster.com/dictionary/" + encodeURIComponent(info.selectionText.trim().toLowerCase()),
-    "focused": true,
-    "type": "popup"
-  }, function(window) {
-    console.log(window);
-  })
+  var queryInfo = {
+    'url' : "*://www.merriam-webster.com/*"
+  };
+
+  chrome.tabs.query(queryInfo, queryCallback);
 }
 
-function contextMenuErrorCallback() {
-  console.log(chrome.runtime.lastError);
+function queryCallback(tabs) {
+  var redirectUrl = "https://www.merriam-webster.com/dictionary/" + word;
+  var tabUpdateProperties = {
+    'url': redirectUrl,
+    'active': true,
+    'highlighted': true
+  };
+  var windowUpdateProperties = {
+    'focused': true
+  }
+  if (tabs.length === 0) {
+    chrome.windows.create({
+      "url": redirectUrl,
+      "focused": true,
+      "type": "popup"
+    }, function(window) {
+      console.log(window);
+    })
+  } else {
+    chrome.tabs.update(tabs[0].id, tabUpdateProperties);
+    chrome.windows.update(tabs[0].windowId, windowUpdateProperties);
+    //WM website doesn't implement AJAX, no need to send message
+    //chrome.tabs.sendMessage(tabs[0].id, {'message': word}, sendMessageCallback);
+  }
 }
