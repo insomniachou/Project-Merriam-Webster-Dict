@@ -13,7 +13,10 @@ function contextMenuFallback() {
 
 function contextMenuOnClick(info, tab) {
   const word = encodeURIComponent(info.selectionText.trim().toLowerCase());
-  chrome.tabs.sendMessage(tab.id, word + " This is a test");
+  $.get("https://www.merriam-webster.com/dictionary/" + word, response => {
+    const definition = $(response).find("#left-content");
+    chrome.tabs.sendMessage(tab.id, definition.html());
+  });
 
 
   // const queryInfo = {
